@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -32,6 +33,7 @@ import com.example.tcc_tracker.viewmodel.TccViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.foundation.layout.navigationBarsPadding
 
 val BgColor = Color(0xFF0F0F1A)
 val CardColor = Color(0xFF22223B)
@@ -363,7 +365,6 @@ fun HeaderSection(nome: String, onPerfilClick: () -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         Column { Text("Bem Vindo,", fontSize = 13.sp, color = TextMutedColor); Text(if (nome.isEmpty()) "Visitante" else nome, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = TextColor) }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(CardColor), contentAlignment = Alignment.Center) { Icon(Icons.Filled.Notifications, contentDescription = "Avisos", tint = TextMutedColor, modifier = Modifier.size(20.dp)) }
             Spacer(modifier = Modifier.width(10.dp))
             Box(modifier = Modifier.size(44.dp).clip(CircleShape).background(Brush.linearGradient(listOf(AccentColor, TealColor))).border(3.dp, AccentColor.copy(alpha = 0.3f), CircleShape).clickable { onPerfilClick() }, contentAlignment = Alignment.Center) { Text(iniciais, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 17.sp) }
         }
@@ -380,13 +381,23 @@ fun SectionTitle(title: String, action: String, iconTitle: androidx.compose.ui.g
 
 @Composable
 fun CustomBottomNav(onAddClick: () -> Unit) {
-    Box(modifier = Modifier.fillMaxWidth().background(BgColor.copy(alpha = 0.95f)).border(1.dp, Color.White.copy(alpha = 0.05f)).padding(vertical = 12.dp, horizontal = 20.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(BgColor.copy(alpha = 0.95f))
+            .border(1.dp, Color.White.copy(alpha = 0.05f))
+            .navigationBarsPadding()
+            .padding(vertical = 8.dp, horizontal = 20.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Filled.Home, contentDescription = "Home", tint = Accent2Color, modifier = Modifier.size(24.dp))
+            Box(modifier = Modifier
+                .offset(y = (-15).dp)
+                .size(62.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(Brush.linearGradient(listOf(AccentColor, Accent2Color)))
+                .clickable { onAddClick() }, contentAlignment = Alignment.Center) { Icon(Icons.Filled.Add, contentDescription = "Add", tint = Color.White, modifier = Modifier.size(28.dp)) }
             Icon(Icons.Filled.DateRange, contentDescription = "Agenda", tint = TextMutedColor, modifier = Modifier.size(24.dp))
-            Box(modifier = Modifier.offset(y = (-15).dp).size(56.dp).clip(RoundedCornerShape(18.dp)).background(Brush.linearGradient(listOf(AccentColor, Accent2Color))).clickable { onAddClick() }, contentAlignment = Alignment.Center) { Icon(Icons.Filled.Add, contentDescription = "Add", tint = Color.White, modifier = Modifier.size(28.dp)) }
-            Icon(Icons.Filled.Share, contentDescription = "Refs", tint = TextMutedColor, modifier = Modifier.size(24.dp))
-            Icon(Icons.Filled.Person, contentDescription = "Perfil", tint = TextMutedColor, modifier = Modifier.size(24.dp))
         }
     }
 }
