@@ -383,10 +383,8 @@ fun CustomBottomNav(onAddClick: () -> Unit) {
     Box(modifier = Modifier.fillMaxWidth().background(BgColor.copy(alpha = 0.95f)).border(1.dp, Color.White.copy(alpha = 0.05f)).padding(vertical = 12.dp, horizontal = 20.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Filled.Home, contentDescription = "Home", tint = Accent2Color, modifier = Modifier.size(24.dp))
-            Icon(Icons.Filled.DateRange, contentDescription = "Agenda", tint = TextMutedColor, modifier = Modifier.size(24.dp))
             Box(modifier = Modifier.offset(y = (-15).dp).size(56.dp).clip(RoundedCornerShape(18.dp)).background(Brush.linearGradient(listOf(AccentColor, Accent2Color))).clickable { onAddClick() }, contentAlignment = Alignment.Center) { Icon(Icons.Filled.Add, contentDescription = "Add", tint = Color.White, modifier = Modifier.size(28.dp)) }
-            Icon(Icons.Filled.Share, contentDescription = "Refs", tint = TextMutedColor, modifier = Modifier.size(24.dp))
-            Icon(Icons.Filled.Person, contentDescription = "Perfil", tint = TextMutedColor, modifier = Modifier.size(24.dp))
+            Icon(Icons.Filled.DateRange, contentDescription = "Agenda", tint = TextMutedColor, modifier = Modifier.size(24.dp))
         }
     }
 }
