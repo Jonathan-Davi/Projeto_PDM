@@ -17,6 +17,9 @@ class TccViewModel(private val projetoDao: ProjetoDao, private val marcoDao: Mar
     val todosProjetos: StateFlow<List<Projeto>> = projetoDao.listarTodos()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val todosMarcos: StateFlow<List<Marco>> = marcoDao.listarTodos()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun adicionarProjeto(tema: String, orientador: String, dataFinal: String) {
         viewModelScope.launch { projetoDao.inserir(Projeto(tema = tema, orientador = orientador, dataEntregaFinal = dataFinal)) }
     }
@@ -40,6 +43,23 @@ class TccViewModel(private val projetoDao: ProjetoDao, private val marcoDao: Mar
 
     fun deletarMarco(marco: Marco) {
         viewModelScope.launch { marcoDao.deletar(marco) }
+    }
+
+    fun deletarProjeto(projeto: Projeto) {
+        viewModelScope.launch { projetoDao.deletar(projeto) }
+    }
+
+    // ← NOVO: marca o projeto como concluído (sem excluir)
+    fun concluirProjeto(projeto: Projeto) {
+        viewModelScope.launch {
+            projetoDao.atualizar(projeto.copy(concluido = true))
+        }
+    }
+
+    fun salvarAnotacao(projeto: Projeto, texto: String) {
+        viewModelScope.launch {
+            projetoDao.atualizar(projeto.copy(anotacoes = texto))
+        }
     }
 }
 

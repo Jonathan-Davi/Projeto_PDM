@@ -61,6 +61,18 @@ fun checarAtraso(data: String, status: String): Boolean {
     }
 }
 
+fun validarData(data: String): Boolean {
+    if (data.isBlank()) return false
+    return try {
+        val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+        sdf.isLenient = false
+        sdf.parse(data)
+        true
+    } catch (e: Exception) {
+        false
+    }
+}
+
 @Composable
 fun HomeScreen(viewModel: TccViewModel) {
     val context = LocalContext.current
@@ -70,32 +82,43 @@ fun HomeScreen(viewModel: TccViewModel) {
 
     var projetoSelecionado by remember { mutableStateOf<Projeto?>(null) }
     var mostrarDialogProjeto by remember { mutableStateOf(false) }
-
     var filtroSelecionado by remember { mutableStateOf("Todos") }
+
+    var telaAtual by remember { mutableStateOf("home") } // ← ADICIONAR
 
     Scaffold(
         containerColor = BgColor,
-        bottomBar = { CustomBottomNav(onAddClick = { mostrarDialogProjeto = true }) }
+        bottomBar = {
+            CustomBottomNav( // ← ALTERAR (adicionar os novos parâmetros)
+                telaAtual         = telaAtual,
+                onHomeClick       = { telaAtual = "home" },
+                onAddClick        = { mostrarDialogProjeto = true },
+                onCalendarioClick = { telaAtual = "calendar" }
+            )
+        }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 20.dp)
-                .padding(top = 16.dp)
-        ) {
-            HeaderSection(nome = nomeUsuario, onPerfilClick = { mostrarDialogNome = true })
-            Spacer(modifier = Modifier.height(16.dp))
 
-            FilterChips(filtroSelecionado) { novoFiltro -> filtroSelecionado = novoFiltro }
-
-            Spacer(modifier = Modifier.height(22.dp))
-
-            Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                if (projetoSelecionado == null) {
-                    ListaDeProjetos(viewModel, onProjetoClick = { projetoSelecionado = it })
-                } else {
-                    TelaDashboardProjeto(projetoSelecionado!!, viewModel, filtroSelecionado, onVoltar = { projetoSelecionado = null })
+        // ← ALTERAR: verificar qual tela exibir
+        if (telaAtual == "calendar") {
+            CalendarScreen(viewModel = viewModel)
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 16.dp)
+            ) {
+                HeaderSection(nome = nomeUsuario, onPerfilClick = { mostrarDialogNome = true })
+                Spacer(modifier = Modifier.height(16.dp))
+                FilterChips(filtroSelecionado) { novoFiltro -> filtroSelecionado = novoFiltro }
+                Spacer(modifier = Modifier.height(22.dp))
+                Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    if (projetoSelecionado == null) {
+                        ListaDeProjetos(viewModel, onProjetoClick = { projetoSelecionado = it })
+                    } else {
+                        TelaDashboardProjeto(projetoSelecionado!!, viewModel, filtroSelecionado, onVoltar = { projetoSelecionado = null })
+                    }
                 }
             }
         }
@@ -126,17 +149,114 @@ fun HomeScreen(viewModel: TccViewModel) {
         var tema by remember { mutableStateOf("") }
         var orientador by remember { mutableStateOf("") }
         var data by remember { mutableStateOf("") }
+
+        // Estados de erro
+        var erroTema by remember { mutableStateOf(false) }
+        var erroData by remember { mutableStateOf(false) }
+
         AlertDialog(
-            onDismissRequest = { mostrarDialogProjeto = false }, containerColor = CardColor, title = { Text("Novo Projeto", color = TextColor) },
+            onDismissRequest = { mostrarDialogProjeto = false },
+            containerColor = CardColor,
+            title = { Text("Novo Projeto", color = TextColor) },
             text = {
                 Column {
-                    OutlinedTextField(value = tema, onValueChange = { tema = it }, label = { Text("Tema", color = TextMutedColor) }, keyboardOptions = textConfig, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextColor, unfocusedTextColor = TextColor))
-                    OutlinedTextField(value = orientador, onValueChange = { orientador = it }, label = { Text("Orientador", color = TextMutedColor) }, keyboardOptions = textConfig, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextColor, unfocusedTextColor = TextColor))
-                    OutlinedTextField(value = data, onValueChange = { data = it }, label = { Text("Prazo (Ex: 15/12/2026)", color = TextMutedColor) }, keyboardOptions = textConfig, modifier = Modifier.fillMaxWidth(), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextColor, unfocusedTextColor = TextColor))
+
+                    // ── Tema (obrigatório) ──────────────────────────────
+                    OutlinedTextField(
+                        value       = tema,
+                        onValueChange = {
+                            tema = it
+                            if (erroTema) erroTema = false  // limpa erro ao digitar
+                        },
+                        label       = {
+                            Text(
+                                "Tema *",
+                                color = if (erroTema) RedColor else TextMutedColor
+                            )
+                        },
+                        isError         = erroTema,
+                        supportingText  = {
+                            if (erroTema) Text("O tema é obrigatório", color = RedColor, fontSize = 11.sp)
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        modifier        = Modifier.fillMaxWidth(),
+                        colors          = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor     = TextColor,
+                            unfocusedTextColor   = TextColor,
+                            errorBorderColor     = RedColor,
+                            errorLabelColor      = RedColor
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // ── Orientador (opcional) ───────────────────────────
+                    OutlinedTextField(
+                        value         = orientador,
+                        onValueChange = { orientador = it },
+                        label         = { Text("Orientador (opcional)", color = TextMutedColor) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        modifier      = Modifier.fillMaxWidth(),
+                        colors        = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor   = TextColor,
+                            unfocusedTextColor = TextColor
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // ── Data (obrigatório + formato) ────────────────────
+                    OutlinedTextField(
+                        value         = data,
+                        onValueChange = {
+                            data = it
+                            if (erroData) erroData = false  // limpa erro ao digitar
+                        },
+                        label = {
+                            Text(
+                                "Prazo * (dd/MM/yyyy)",
+                                color = if (erroData) RedColor else TextMutedColor
+                            )
+                        },
+                        isError        = erroData,
+                        supportingText = {
+                            if (erroData) Text(
+                                if (data.isBlank()) "A data é obrigatória"
+                                else "Formato inválido. Use dd/MM/yyyy",
+                                color = RedColor, fontSize = 11.sp
+                            )
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        modifier        = Modifier.fillMaxWidth(),
+                        colors          = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor   = TextColor,
+                            unfocusedTextColor = TextColor,
+                            errorBorderColor   = RedColor,
+                            errorLabelColor    = RedColor
+                        )
+                    )
                 }
             },
-            confirmButton = { Button(onClick = { viewModel.adicionarProjeto(tema, orientador, data); mostrarDialogProjeto = false }, colors = ButtonDefaults.buttonColors(containerColor = AccentColor)) { Text("Salvar") } },
-            dismissButton = { TextButton(onClick = { mostrarDialogProjeto = false }) { Text("Cancelar", color = TextMutedColor) } }
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // ── Validação antes de salvar ───────────────────
+                        erroTema = tema.isBlank()
+                        erroData = !validarData(data)
+
+                        if (!erroTema && !erroData) {
+                            viewModel.adicionarProjeto(tema.trim(), orientador.trim(), data.trim())
+                            mostrarDialogProjeto = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentColor)
+                ) { Text("Salvar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogProjeto = false }) {
+                    Text("Cancelar", color = TextMutedColor)
+                }
+            }
         )
     }
 }
@@ -181,7 +301,7 @@ fun TelaDashboardProjeto(projeto: Projeto, viewModel: TccViewModel, filtroSeleci
             item { SectionTitle("Visão Geral", "") }
             item {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatCard(modifier = Modifier.weight(1f), num = total.toString(), lbl = "Marcos", icon = Icons.Filled.Place, color = Accent2Color, bg = AccentColor.copy(alpha = 0.2f))
+                    StatCard(modifier = Modifier.weight(1f), num = total.toString(), lbl = "Tarefas", icon = Icons.Filled.Place, color = Accent2Color, bg = AccentColor.copy(alpha = 0.2f))
                     StatCard(modifier = Modifier.weight(1f), num = concluidos.toString(), lbl = "Concluídas", icon = Icons.Filled.CheckCircle, color = GreenColor, bg = GreenColor.copy(alpha = 0.15f))
                     StatCard(modifier = Modifier.weight(1f), num = atrasados.toString(), lbl = "Atrasados", icon = Icons.Filled.Warning, color = RedColor, bg = RedColor.copy(alpha = 0.15f))
                 }
@@ -196,6 +316,14 @@ fun TelaDashboardProjeto(projeto: Projeto, viewModel: TccViewModel, filtroSeleci
                     MilestoneCardFuncional(marco, viewModel)
                     Spacer(modifier = Modifier.height(12.dp))
                 }
+            }
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+                SecaoAnotacoes(
+                    projeto   = projeto,
+                    viewModel = viewModel
+                )
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
 
@@ -217,19 +345,119 @@ fun TelaDashboardProjeto(projeto: Projeto, viewModel: TccViewModel, filtroSeleci
         var titulo by remember { mutableStateOf("") }
         var descricao by remember { mutableStateOf("") }
         var dataPrevista by remember { mutableStateOf("") }
-        val textConfig = KeyboardOptions(keyboardType = KeyboardType.Text)
+
+        // Estados de erro
+        var erroTitulo by remember { mutableStateOf(false) }
+        var erroData by remember { mutableStateOf(false) }
 
         AlertDialog(
-            onDismissRequest = { mostrarDialogNovoMarco = false }, containerColor = CardColor, title = { Text("Novo Marco/Tarefa", color = TextColor) },
+            onDismissRequest = { mostrarDialogNovoMarco = false },
+            containerColor   = CardColor,
+            title            = { Text("Novo Marco/Tarefa", color = TextColor) },
             text = {
                 Column {
-                    OutlinedTextField(value = titulo, onValueChange = { titulo = it }, label = { Text("Título", color = TextMutedColor) }, keyboardOptions = textConfig, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextColor, unfocusedTextColor = TextColor))
-                    OutlinedTextField(value = descricao, onValueChange = { descricao = it }, label = { Text("Descrição", color = TextMutedColor) }, keyboardOptions = textConfig, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextColor, unfocusedTextColor = TextColor))
-                    OutlinedTextField(value = dataPrevista, onValueChange = { dataPrevista = it }, label = { Text("Data Prevista (Ex: 19/02/2026)", color = TextMutedColor) }, keyboardOptions = textConfig, modifier = Modifier.fillMaxWidth(), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextColor, unfocusedTextColor = TextColor))
+
+                    // ── Título (obrigatório) ────────────────────────────
+                    OutlinedTextField(
+                        value         = titulo,
+                        onValueChange = {
+                            titulo = it
+                            if (erroTitulo) erroTitulo = false
+                        },
+                        label = {
+                            Text(
+                                "Título *",
+                                color = if (erroTitulo) RedColor else TextMutedColor
+                            )
+                        },
+                        isError        = erroTitulo,
+                        supportingText = {
+                            if (erroTitulo) Text("O título é obrigatório", color = RedColor, fontSize = 11.sp)
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        modifier        = Modifier.fillMaxWidth(),
+                        colors          = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor   = TextColor,
+                            unfocusedTextColor = TextColor,
+                            errorBorderColor   = RedColor,
+                            errorLabelColor    = RedColor
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // ── Descrição (opcional) ────────────────────────────
+                    OutlinedTextField(
+                        value         = descricao,
+                        onValueChange = { descricao = it },
+                        label         = { Text("Descrição (opcional)", color = TextMutedColor) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        modifier      = Modifier.fillMaxWidth(),
+                        colors        = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor   = TextColor,
+                            unfocusedTextColor = TextColor
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // ── Data (obrigatório + formato) ────────────────────
+                    OutlinedTextField(
+                        value         = dataPrevista,
+                        onValueChange = {
+                            dataPrevista = it
+                            if (erroData) erroData = false
+                        },
+                        label = {
+                            Text(
+                                "Data Prevista * (dd/MM/yyyy)",
+                                color = if (erroData) RedColor else TextMutedColor
+                            )
+                        },
+                        isError        = erroData,
+                        supportingText = {
+                            if (erroData) Text(
+                                if (dataPrevista.isBlank()) "A data é obrigatória"
+                                else "Formato inválido. Use dd/MM/yyyy",
+                                color = RedColor, fontSize = 11.sp
+                            )
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        modifier        = Modifier.fillMaxWidth(),
+                        colors          = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor   = TextColor,
+                            unfocusedTextColor = TextColor,
+                            errorBorderColor   = RedColor,
+                            errorLabelColor    = RedColor
+                        )
+                    )
                 }
             },
-            confirmButton = { Button(onClick = { viewModel.adicionarMarco(projeto.id, titulo, descricao, dataPrevista); mostrarDialogNovoMarco = false }, colors = ButtonDefaults.buttonColors(containerColor = AccentColor)) { Text("Adicionar") } },
-            dismissButton = { TextButton(onClick = { mostrarDialogNovoMarco = false }) { Text("Cancelar", color = TextMutedColor) } }
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // ── Validação antes de salvar ───────────────────
+                        erroTitulo = titulo.isBlank()
+                        erroData   = !validarData(dataPrevista)
+
+                        if (!erroTitulo && !erroData) {
+                            viewModel.adicionarMarco(
+                                projeto.id,
+                                titulo.trim(),
+                                descricao.trim(),
+                                dataPrevista.trim()
+                            )
+                            mostrarDialogNovoMarco = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentColor)
+                ) { Text("Adicionar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarDialogNovoMarco = false }) {
+                    Text("Cancelar", color = TextMutedColor)
+                }
+            }
         )
     }
 }
@@ -312,9 +540,14 @@ fun FilterChips(filtroAtual: String, onFiltroChange: (String) -> Unit) {
 fun ListaDeProjetos(viewModel: TccViewModel, onProjetoClick: (Projeto) -> Unit) {
     val projetos by viewModel.todosProjetos.collectAsState()
     Column(modifier = Modifier.fillMaxSize()) {
-        SectionTitle("Seus Projetos", "Ver todos")
+        SectionTitle("Seus Projetos", "")
         if (projetos.isEmpty()) {
-            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { Text("Nenhum projeto cadastrado.", color = TextMutedColor) }
+            Box(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Nenhum projeto cadastrado.", color = TextMutedColor)
+            }
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -322,13 +555,321 @@ fun ListaDeProjetos(viewModel: TccViewModel, onProjetoClick: (Projeto) -> Unit) 
                 contentPadding = PaddingValues(bottom = 16.dp)
             ) {
                 items(projetos, key = { it.id }) { projeto ->
-                    Card(modifier = Modifier.fillMaxWidth().clickable { onProjetoClick(projeto) }, colors = CardDefaults.cardColors(containerColor = CardColor), shape = RoundedCornerShape(16.dp)) {
-                        Row(modifier = Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(AccentColor.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) { Icon(Icons.Filled.Star, contentDescription = null, tint = Accent2Color, modifier = Modifier.size(18.dp)) }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column { Text(projeto.tema, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextColor); Text("Entrega: ${projeto.dataEntregaFinal}", fontSize = 12.sp, color = TextMutedColor) }
-                        }
+                    CardProjeto(                          // ← SUBSTITUIR pelo novo composable
+                        projeto      = projeto,
+                        onClick      = { onProjetoClick(projeto) },
+                        onDeletar    = { viewModel.deletarProjeto(projeto) },
+                        onConcluir   = { viewModel.concluirProjeto(projeto) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CardProjeto(
+    projeto: Projeto,
+    onClick: () -> Unit,
+    onDeletar: () -> Unit,
+    onConcluir: () -> Unit
+) {
+    var mostrarOpcoes by remember { mutableStateOf(false) }
+    var mostrarConfirmacaoDelete by remember { mutableStateOf(false) }
+    var mostrarConfirmacaoConcluir by remember { mutableStateOf(false) }
+
+    val corBorda = if (projeto.concluido) GreenColor.copy(alpha = 0.5f)
+    else Color.White.copy(alpha = 0f)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, corBorda, RoundedCornerShape(16.dp))
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = CardColor),
+        shape  = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Ícone + info do projeto
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(
+                                if (projeto.concluido) GreenColor.copy(alpha = 0.2f)
+                                else AccentColor.copy(alpha = 0.2f)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            if (projeto.concluido) Icons.Filled.CheckCircle else Icons.Filled.Star,
+                            contentDescription = null,
+                            tint = if (projeto.concluido) GreenColor else Accent2Color,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                projeto.tema,
+                                fontSize   = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color      = TextColor
+                            )
+                            if (projeto.concluido) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "Concluído",
+                                    fontSize  = 10.sp,
+                                    color     = GreenColor,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier  = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(GreenColor.copy(alpha = 0.15f))
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            "Entrega: ${projeto.dataEntregaFinal}",
+                            fontSize = 12.sp,
+                            color    = TextMutedColor
+                        )
+                    }
+                }
+
+                // Botão de opções (⋮)
+                IconButton(onClick = { mostrarOpcoes = true }) {
+                    Icon(
+                        Icons.Filled.MoreVert,
+                        contentDescription = "Opções",
+                        tint = TextMutedColor
+                    )
+                }
+            }
+        }
+    }
+
+    // ── Menu de opções ──────────────────────────────────────────────
+    DropdownMenu(
+        expanded         = mostrarOpcoes,
+        onDismissRequest = { mostrarOpcoes = false },
+        modifier         = Modifier.background(CardColor)
+    ) {
+        if (!projeto.concluido) {
+            DropdownMenuItem(
+                text = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Filled.CheckCircle, contentDescription = null,
+                            tint = GreenColor, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Marcar como Concluído", color = TextColor)
+                    }
+                },
+                onClick = {
+                    mostrarOpcoes = false
+                    mostrarConfirmacaoConcluir = true
+                }
+            )
+        }
+        DropdownMenuItem(
+            text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Delete, contentDescription = null,
+                        tint = RedColor, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Excluir Projeto", color = RedColor)
+                }
+            },
+            onClick = {
+                mostrarOpcoes = false
+                mostrarConfirmacaoDelete = true
+            }
+        )
+    }
+
+    // ── Dialog: confirmar exclusão ───────────────────────────────────
+    if (mostrarConfirmacaoDelete) {
+        AlertDialog(
+            onDismissRequest = { mostrarConfirmacaoDelete = false },
+            containerColor   = CardColor,
+            title = { Text("Excluir Projeto?", color = TextColor, fontWeight = FontWeight.Bold) },
+            text  = {
+                Text(
+                    "Tem certeza que deseja excluir \"${projeto.tema}\"? Esta ação não pode ser desfeita.",
+                    color = TextMutedColor
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { mostrarConfirmacaoDelete = false; onDeletar() },
+                    colors  = ButtonDefaults.buttonColors(containerColor = RedColor)
+                ) { Text("Excluir", fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarConfirmacaoDelete = false }) {
+                    Text("Cancelar", color = TextMutedColor)
+                }
+            }
+        )
+    }
+
+    // ── Dialog: confirmar conclusão ──────────────────────────────────
+    if (mostrarConfirmacaoConcluir) {
+        AlertDialog(
+            onDismissRequest = { mostrarConfirmacaoConcluir = false },
+            containerColor   = CardColor,
+            title = { Text("Concluir Projeto?", color = TextColor, fontWeight = FontWeight.Bold) },
+            text  = {
+                Text(
+                    "Deseja marcar \"${projeto.tema}\" como concluído?",
+                    color = TextMutedColor
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = { mostrarConfirmacaoConcluir = false; onConcluir() },
+                    colors  = ButtonDefaults.buttonColors(containerColor = GreenColor)
+                ) { Text("Concluir", fontWeight = FontWeight.Bold, color = Color.Black) }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarConfirmacaoConcluir = false }) {
+                    Text("Cancelar", color = TextMutedColor)
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun SecaoAnotacoes(
+    projeto: Projeto,
+    viewModel: TccViewModel
+) {
+    var textoAnotacao by remember(projeto.id) { mutableStateOf(projeto.anotacoes) }
+    var modoEdicao by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+
+        // Cabeçalho da seção
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.Edit,
+                    contentDescription = null,
+                    tint = Accent2Color,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    "Anotações",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextColor
+                )
+            }
+
+            // Botão Editar / Salvar
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(
+                        if (modoEdicao) GreenColor.copy(alpha = 0.15f)
+                        else AccentColor.copy(alpha = 0.15f)
+                    )
+                    .clickable {
+                        if (modoEdicao) {
+                            viewModel.salvarAnotacao(projeto, textoAnotacao)
+                        }
+                        modoEdicao = !modoEdicao
+                    }
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        if (modoEdicao) Icons.Filled.Check else Icons.Filled.Edit,
+                        contentDescription = null,
+                        tint = if (modoEdicao) GreenColor else Accent2Color,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        if (modoEdicao) "Salvar" else "Editar",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (modoEdicao) GreenColor else Accent2Color
+                    )
+                }
+            }
+        }
+
+        // Área de texto
+        if (modoEdicao) {
+            // Modo edição — campo de texto livre
+            OutlinedTextField(
+                value = textoAnotacao,
+                onValueChange = { textoAnotacao = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 120.dp),
+                placeholder = {
+                    Text(
+                        "Escreva suas anotações, ideias ou lembretes aqui...",
+                        color = TextMutedColor,
+                        fontSize = 13.sp
+                    )
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor   = TextColor,
+                    unfocusedTextColor = TextColor,
+                    focusedBorderColor = Accent2Color,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                    cursorColor        = Accent2Color
+                ),
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+            )
+        } else {
+            // Modo leitura — exibe o texto salvo
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 80.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(CardColor)
+                    .border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(12.dp))
+                    .padding(14.dp)
+            ) {
+                if (textoAnotacao.isBlank()) {
+                    Text(
+                        "Nenhuma anotação ainda. Toque em \"Editar\" para começar.",
+                        color = TextMutedColor,
+                        fontSize = 13.sp
+                    )
+                } else {
+                    Text(
+                        textoAnotacao,
+                        color = TextColor,
+                        fontSize = 13.sp,
+                        lineHeight = 20.sp
+                    )
                 }
             }
         }
@@ -380,24 +921,62 @@ fun SectionTitle(title: String, action: String, iconTitle: androidx.compose.ui.g
 }
 
 @Composable
-fun CustomBottomNav(onAddClick: () -> Unit) {
+fun CustomBottomNav(
+    telaAtual: String,         // ← NOVOS PARÂMETROS
+    onHomeClick: () -> Unit,
+    onAddClick: () -> Unit,
+    onCalendarioClick: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .background(BgColor.copy(alpha = 0.95f))
             .border(1.dp, Color.White.copy(alpha = 0.05f))
             .navigationBarsPadding()
-            .padding(vertical = 8.dp, horizontal = 20.dp)
+            .padding(vertical = 12.dp, horizontal = 40.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Home, contentDescription = "Home", tint = Accent2Color, modifier = Modifier.size(24.dp))
-            Box(modifier = Modifier
-                .offset(y = (-15).dp)
-                .size(62.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .background(Brush.linearGradient(listOf(AccentColor, Accent2Color)))
-                .clickable { onAddClick() }, contentAlignment = Alignment.Center) { Icon(Icons.Filled.Add, contentDescription = "Add", tint = Color.White, modifier = Modifier.size(28.dp)) }
-            Icon(Icons.Filled.DateRange, contentDescription = "Agenda", tint = TextMutedColor, modifier = Modifier.size(24.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Ícone Home
+            Icon(
+                Icons.Filled.Home,
+                contentDescription = "Home",
+                tint = if (telaAtual == "home") Accent2Color else TextMutedColor,
+                modifier = Modifier
+                    .size(24.dp)
+                    .clickable { onHomeClick() }
+            )
+
+            // Botão central de adicionar
+            Box(
+                modifier = Modifier
+                    .offset(y = (-15).dp)
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Brush.linearGradient(listOf(AccentColor, Accent2Color)))
+                    .clickable { onAddClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Filled.Add,
+                    contentDescription = "Add",
+                    tint = Color.White,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            // Ícone Calendário
+            Icon(
+                Icons.Filled.DateRange,
+                contentDescription = "Calendário",
+                tint = if (telaAtual == "calendar") Accent2Color else TextMutedColor,
+                modifier = Modifier
+                    .size(24.dp)
+                    .clickable { onCalendarioClick() }
+            )
         }
     }
 }

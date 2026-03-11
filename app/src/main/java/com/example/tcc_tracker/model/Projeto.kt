@@ -9,5 +9,7 @@ data class Projeto(
     val id: Int = 0,
     val tema: String,
     val orientador: String,
-    val dataEntregaFinal: String
+    val dataEntregaFinal: String,
+    val concluido: Boolean = false,
+    val anotacoes: String = ""
 )

@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import com.example.tcc_tracker.model.Marco
 import com.example.tcc_tracker.model.Projeto
 
-@Database(entities = [Projeto::class, Marco::class], version = 3, exportSchema = false)
+@Database(entities = [Projeto::class, Marco::class], version = 6, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun projetoDao(): ProjetoDao
     abstract fun marcoDao(): MarcoDao
